@@ -1,16 +1,20 @@
+// This file merge together the gitlab.com/gomidi/midi example and github.com/bspaans/bleep example
 package main
 
 import (
 	"fmt"
-	"time"
+	"log"
 
 	"github.com/bspaans/bleep/audio"
-	"github.com/bspaans/bleep/channels"
 	"github.com/bspaans/bleep/controller"
-	"github.com/bspaans/bleep/generators"
-	"github.com/bspaans/bleep/synth"
+	"github.com/hajimehoshi/ebiten"
 	"gitlab.com/gomidi/midi/v2"
 	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv"
+
+	"github.com/joelschutz/Go-Midi-View/internal"
+	"github.com/joelschutz/Go-Midi-View/internal/components"
+	signalgenerators "github.com/joelschutz/Go-Midi-View/internal/components/SignalGenerators"
+	visualgenerators "github.com/joelschutz/Go-Midi-View/internal/components/VisualGenerators"
 )
 
 func main() {
@@ -20,63 +24,47 @@ func main() {
 	in, err := midi.FindInPort("Arturia")
 	if err != nil {
 		fmt.Println("can't find Arturia")
-		return
+		panic(err)
 	}
 
 	cfg := audio.NewAudioConfig()
 
-	// Bleep uses generators as the fundamental building block;
-	// generators have a configurable pitch, velocity, etc. and *generate*
-	// a number of samples.
-	// We want to play a sine wave so let's use a SineWaveOscillator
-	instr := generators.NewSineWaveOscillator
-
-	// By attaching it to a channel we can play multiple notes at once
-	// Each note will have its own dedicated generator function.
-	channel := channels.NewPolyphonicChannel()
-	channel.SetInstrument(instr)
-
-	// We can combine multiple channels into a Mixer, which allows us to set
-	// volumes, etc. In this case it's a bit overkill, because we have
-	// only one channel.
-	mixer := synth.NewMixer()
-	mixer.AddChannel(channel)
-
-	// The Synth takes a mixer, handles input and output events, and is the
-	// component that actually asks for samples to send to the output sinks.
-	synth := synth.NewSynth(cfg)
-	synth.Mixer = mixer
-
-	// The Controller is a high level object that can be used to setup
-	// and control the Synthesizer, Sequencer and the instrument banks.
-	// In this case we'll just attach the Synth that we made previously.
 	ctrl := controller.NewController(cfg)
-	ctrl.Synth = synth
 
-	stop, err := midi.ListenTo(in, func(msg midi.Message, timestampms int32) {
-		var bt []byte
-		var ch, key, vel uint8
-		switch {
-		case msg.GetSysEx(&bt):
-			fmt.Printf("got sysex: % X\n", bt)
-		case msg.GetNoteStart(&ch, &key, &vel):
-			fmt.Printf("starting note %s on channel %v with velocity %v\n", midi.Note(key), ch, vel)
-			mixer.NoteOn(int(ch), int(key), float64(vel))
-		case msg.GetNoteEnd(&ch, &key):
-			fmt.Printf("ending note %s on channel %v\n", midi.Note(key), ch)
-			mixer.NoteOff(int(ch), int(key))
-		default:
-			fmt.Printf("message %s on channel %v\n", midi.Note(key), ch)
-		}
-	}, midi.UseSysEx())
-
+	err = ctrl.LoadInstrumentBank("./audio/bank.yml")
 	if err != nil {
-		fmt.Printf("ERROR: %s\n", err)
-		return
+		panic(err)
+	}
+	err = ctrl.LoadPercussionBank("./audio/percussion_bank.yml")
+	if err != nil {
+		panic(err)
+	}
+	ctrl.Synth.Mixer.ChangeInstrument(ctrl.Config, 0, 0)
+	ctrl.Synth.Mixer.ChangeInstrument(ctrl.Config, 9, 52)
+
+	stop, midiCtrl, err := components.NewMidiController(in, nil)
+	if err != nil {
+		panic(err)
 	}
 
-	go synth.Start()
-	time.Sleep(time.Minute * 5)
-
-	stop()
+	audioComp, err := components.NewMidiAudioComponent(ctrl, midiCtrl)
+	if err != nil {
+		panic(err)
+	}
+	colorSig := signalgenerators.NewConstantGenerator4D(255, 0, 0, 255)
+	lengthSig := signalgenerators.NewMidiVelocityGenerator(0)
+	visualComp, err := components.NewVisualComponent(visualgenerators.NewSquareGenerator(lengthSig, colorSig))
+	if err != nil {
+		panic(err)
+	}
+	sc := internal.NewScreenController()
+	sc.AddComponent(audioComp)
+	sc.AddComponent(visualComp)
+	ebiten.SetWindowSize(640, 480)
+	ebiten.SetWindowTitle("Hello, World!")
+	if err := ebiten.RunGame(sc); err != nil {
+		log.Fatal(err)
+		ctrl.Quit()
+		stop()
+	}
 }
