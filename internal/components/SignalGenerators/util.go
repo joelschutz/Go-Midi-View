@@ -1,6 +1,10 @@
 package signalgenerators
 
-import "time"
+import (
+	"time"
+
+	"github.com/joelschutz/Go-Midi-View/internal/components"
+)
 
 // Implements a simple Constant Concrete Generator 1D
 type Constant1D struct {
@@ -71,8 +75,10 @@ type MidiVelocity1D struct {
 	channel uint8
 }
 
-func NewMidiVelocityGenerator(channel uint8) *MidiVelocity1D {
-	return &MidiVelocity1D{channel: channel}
+func NewMidiVelocityGenerator(channel uint8, midi *components.MidiController) *MidiVelocity1D {
+	obj := &MidiVelocity1D{channel: channel}
+	midi.AddHandler(obj)
+	return obj
 }
 
 func (mk *MidiVelocity1D) GetValue(_ *time.Duration) *float64 {
@@ -86,8 +92,8 @@ func (mk *MidiVelocity1D) OnNoteOn(channel, _, vel *uint8) {
 	}
 }
 func (mk *MidiVelocity1D) OnNoteOff(channel, _, vel *uint8) {
-	if mk.channel == *channel && mk.vel == *vel {
-		mk.vel = 0
+	if mk.channel == *channel {
+		mk.vel = *vel
 	}
 }
 func (mk *MidiVelocity1D) OnPolyAfterTouch(_, _, _ *uint8)           {}
