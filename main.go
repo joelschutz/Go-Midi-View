@@ -52,7 +52,7 @@ func main() {
 		panic(err)
 	}
 	colorSig := signalgenerators.NewConstantGenerator4D(255, 0, 0, 255)
-	lengthSig := signalgenerators.NewMidiVelocityGenerator(0, midiCtrl)
+	lengthSig := signalgenerators.NewVDecayCurve1D(signalgenerators.NewConstantGenerator1D(0.1), signalgenerators.NewMidiControlGenerator(0, 114, midiCtrl))
 	visualComp, err := components.NewVisualComponent(visualgenerators.NewSquareGenerator(lengthSig, colorSig))
 	if err != nil {
 		panic(err)
