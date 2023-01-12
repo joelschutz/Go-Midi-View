@@ -37,68 +37,53 @@ func (c *Constant4D) GetValues(_ *time.Duration) (*float64, *float64, *float64, 
 	return &c.value0, &c.value1, &c.value2, &c.value3
 }
 
-// Implements a simple Monoponic Concrete Midi Generator
-type MidiKey1D struct {
-	key     uint8
-	channel uint8
+// Implements a simple Virtual Combiner Generator 1D-4D
+type Combiner1D4D struct {
+	value0, value1, value2, value3 components.SignalGenerator1D
 }
 
-func NewMidiKeyGenerator(channel uint8) *MidiKey1D {
-	return &MidiKey1D{channel: channel}
-}
-
-func (mk *MidiKey1D) GetValue(_ *time.Duration) *float64 {
-	r := float64(mk.key)
-	return &r
-}
-
-func (mk *MidiKey1D) OnNoteOn(channel, key, _ *uint8) {
-	if mk.channel == *channel {
-		mk.key = *key
+func NewCombiner1DGenerator4D(v0, v1, v2, v3 components.SignalGenerator1D) *Combiner1D4D {
+	return &Combiner1D4D{
+		value0: v0,
+		value1: v1,
+		value2: v2,
+		value3: v3,
 	}
 }
-func (mk *MidiKey1D) OnNoteOff(channel, key, _ *uint8) {
-	if mk.channel == *channel && mk.key == *key {
-		mk.key = 0
+
+func (c *Combiner1D4D) GetValues(delta *time.Duration) (*float64, *float64, *float64, *float64) {
+	return c.value0.GetValue(delta), c.value1.GetValue(delta), c.value2.GetValue(delta), c.value3.GetValue(delta)
+}
+
+// Implements a simple Virtual Combiner Generator 1D-3D
+type Combiner1D3D struct {
+	value0, value1, value2 components.SignalGenerator1D
+}
+
+func NewCombiner1DGenerator3D(v0, v1, v2 components.SignalGenerator1D) *Combiner1D3D {
+	return &Combiner1D3D{
+		value0: v0,
+		value1: v1,
+		value2: v2,
 	}
 }
-func (mk *MidiKey1D) OnPolyAfterTouch(_, _, _ *uint8)           {}
-func (mk *MidiKey1D) OnAfterTouch(_, _ *uint8)                  {}
-func (mk *MidiKey1D) OnProgramChange(_, _ *uint8)               {}
-func (mk *MidiKey1D) OnPitchBend(_ *uint8, _ *int16, _ *uint16) {}
-func (mk *MidiKey1D) OnControlChange(_, _, _ *uint8)            {}
-func (mk *MidiKey1D) OnSysEx(_ *[]byte)                         {}
 
-// Implements a simple Monoponic Concrete Midi Generator
-type MidiVelocity1D struct {
-	vel     uint8
-	channel uint8
+func (c *Combiner1D3D) GetValues(delta *time.Duration) (*float64, *float64, *float64) {
+	return c.value0.GetValue(delta), c.value1.GetValue(delta), c.value2.GetValue(delta)
 }
 
-func NewMidiVelocityGenerator(channel uint8, midi *components.MidiController) *MidiVelocity1D {
-	obj := &MidiVelocity1D{channel: channel}
-	midi.AddHandler(obj)
-	return obj
+// Implements a simple Virtual Combiner Generator 1D-2D
+type Combiner1D2D struct {
+	value0, value1 components.SignalGenerator1D
 }
 
-func (mk *MidiVelocity1D) GetValue(_ *time.Duration) *float64 {
-	r := float64(mk.vel)
-	return &r
-}
-
-func (mk *MidiVelocity1D) OnNoteOn(channel, _, vel *uint8) {
-	if mk.channel == *channel {
-		mk.vel = *vel
+func NewCombiner1DGenerator2D(v0, v1 components.SignalGenerator1D) *Combiner1D2D {
+	return &Combiner1D2D{
+		value0: v0,
+		value1: v1,
 	}
 }
-func (mk *MidiVelocity1D) OnNoteOff(channel, _, vel *uint8) {
-	if mk.channel == *channel {
-		mk.vel = *vel
-	}
+
+func (c *Combiner1D2D) GetValues(delta *time.Duration) (*float64, *float64) {
+	return c.value0.GetValue(delta), c.value1.GetValue(delta)
 }
-func (mk *MidiVelocity1D) OnPolyAfterTouch(_, _, _ *uint8)           {}
-func (mk *MidiVelocity1D) OnAfterTouch(_, _ *uint8)                  {}
-func (mk *MidiVelocity1D) OnProgramChange(_, _ *uint8)               {}
-func (mk *MidiVelocity1D) OnPitchBend(_ *uint8, _ *int16, _ *uint16) {}
-func (mk *MidiVelocity1D) OnControlChange(_, _, _ *uint8)            {}
-func (mk *MidiVelocity1D) OnSysEx(_ *[]byte)                         {}
